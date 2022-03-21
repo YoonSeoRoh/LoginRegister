@@ -2,6 +2,7 @@ const express = require("express"); //express 모듈을 가져옴->package.json 파일에
 const app = express(); //function을 이용해서 새로운 express앱을 만듦
 const port = 5000; //백 서버로 사용할 포트
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
 const { User } = require("./models/User");
 
 const config = require("./config/key");
@@ -9,6 +10,9 @@ const config = require("./config/key");
 //bodyparser 옵션 설정
 app.use(bodyParser.urlencoded({ extended: true })); //application/x-www-form-urlencoded
 app.use(bodyParser.json()); //application/json
+
+//cookie-parser 사용
+app.use(cookieParser());
 
 //mongoose를 이용해서 어플리케이션과 몽고DB를 연결
 const mongoose = require("mongoose");
@@ -26,6 +30,10 @@ mongoose
 
 app.get("/", (req, res) => res.send("Hello World!"));
 
+app.get("/api/hello", (req, res) => {
+  res.send("Hello!");
+});
+
 app.post("/register", (req, res) => {
   //클라이언트에서 보내주는 정보들을 데이터 베이스에 넣어줌
   //req.body안에는 json 형식으로 정보가 들어 있음
@@ -37,6 +45,36 @@ app.post("/register", (req, res) => {
     if (err) return res.json({ success: false, err });
     return res.status(200).json({
       success: true,
+    });
+  });
+});
+
+app.post("/login", (req, res) => {
+  //요청된 이메일을 데이터베이스에서 있는지 확인
+  User.findOne({ email: req.body.email }, (err, user) => {
+    if (!user) {
+      return res.json({
+        loginSucess: false,
+        message: "제공된 이메일에 해당하는 유저가 존재하지 않습니다.",
+      });
+    }
+    //요청한 이메일이 데이터베이스에 있으면 비밀번호가 맞는지 확인
+    user.comparePassword(req.body.password, (err, isMatch) => {
+      if (!isMatch)
+        return res.json({
+          loginSucess: false,
+          message: "비밀번호가 틀렸습니다.",
+        });
+      //이메일 비밀번호 모두 맞으면 토큰 생성
+      user.generateToken((err, user) => {
+        if (err) return res.status(400).send(err);
+        //토큰을 저장 -> 쿠키, 로컬스토리지...
+        //쿠키에 저장
+        res
+          .cookie("x_auth", user.token)
+          .status(200)
+          .json({ loginSuccess: true, userId: user._id });
+      });
     });
   });
 });
