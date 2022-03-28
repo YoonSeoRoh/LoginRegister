@@ -1,25 +1,25 @@
-const express = require("express"); //express ¸ğµâÀ» °¡Á®¿È->package.json ÆÄÀÏ¿¡¼­ È®ÀÎ °¡´É
-const app = express(); //functionÀ» ÀÌ¿ëÇØ¼­ »õ·Î¿î express¾ÛÀ» ¸¸µê
-const port = 5000; //¹é ¼­¹ö·Î »ç¿ëÇÒ Æ÷Æ®
+const express = require("express"); //express ëª¨ë“ˆì„ ê°€ì ¸ì˜´->package.json íŒŒì¼ì—ì„œ í™•ì¸ ê°€ëŠ¥
+const app = express(); //functionì„ ì´ìš©í•´ì„œ ìƒˆë¡œìš´ expressì•±ì„ ë§Œë“¦
+const port = 5000; //ë°± ì„œë²„ë¡œ ì‚¬ìš©í•  í¬íŠ¸
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const { User } = require("./models/User");
-
+const { auth } = require("./middleware/auth");
 const config = require("./config/key");
 
-//bodyparser ¿É¼Ç ¼³Á¤
+//bodyparser ì˜µì…˜ ì„¤ì •
 app.use(bodyParser.urlencoded({ extended: true })); //application/x-www-form-urlencoded
-app.use(bodyParser.json()); //application/json
+app.use(bodyParser.json()); //application/json->json í˜•íƒœë¡œ parsing
 
-//cookie-parser »ç¿ë
+//cookie-parser ì‚¬ìš©
 app.use(cookieParser());
 
-//mongoose¸¦ ÀÌ¿ëÇØ¼­ ¾îÇÃ¸®ÄÉÀÌ¼Ç°ú ¸ù°íDB¸¦ ¿¬°á
+//mongooseë¥¼ ì´ìš©í•´ì„œ ì–´í”Œë¦¬ì¼€ì´ì…˜ê³¼ ëª½ê³ DBë¥¼ ì—°ê²°
 const mongoose = require("mongoose");
 mongoose
   .connect(config.mongoURI, {
-    //¿¡·¯°¡ ¶ßÁö ¾Êµµ·Ï
-    //¸ù±¸½º ¹öÀüÀÌ 6.0 ÀÌ»óÀÌ¶ó¸é ´õ ÀÌ»ó Áö¿øÇÏÁö ¾ÊÀ½
+    //ì—ëŸ¬ê°€ ëœ¨ì§€ ì•Šë„ë¡
+    //ëª½êµ¬ìŠ¤ ë²„ì „ì´ 6.0 ì´ìƒì´ë¼ë©´ ë” ì´ìƒ ì§€ì›í•˜ì§€ ì•ŠìŒ
     //   useNewUrlParser: true,
     //   useUnifiedTopology: true,
     //   useCreateIndex: true,
@@ -34,14 +34,14 @@ app.get("/api/hello", (req, res) => {
   res.send("Hello!");
 });
 
-app.post("/register", (req, res) => {
-  //Å¬¶óÀÌ¾ğÆ®¿¡¼­ º¸³»ÁÖ´Â Á¤º¸µéÀ» µ¥ÀÌÅÍ º£ÀÌ½º¿¡ ³Ö¾îÁÜ
-  //req.body¾È¿¡´Â json Çü½ÄÀ¸·Î Á¤º¸°¡ µé¾î ÀÖÀ½
+app.post("/api/users/register", (req, res) => {
+  //í´ë¼ì´ì–¸íŠ¸ì—ì„œ ë³´ë‚´ì£¼ëŠ” ì •ë³´ë“¤ì„ ë°ì´í„° ë² ì´ìŠ¤ì— ë„£ì–´ì¤Œ
+  //req.bodyì•ˆì—ëŠ” json í˜•ì‹ìœ¼ë¡œ ì •ë³´ê°€ ë“¤ì–´ ìˆìŒ
   const user = new User(req.body);
-  //¸ù°í DB¿¡¼­ ¿À´Â ¸Ş¼Òµå
-  user.save((err, doc) => {
-    //Å¬¶óÀÌ¾ğÆ®¿¡°Ô ¿¡·¯°¡ ÀÖ´Ù°í Àü´Ş
-    //json ÇüÅÂ·Î
+  //ëª½ê³  DBì—ì„œ ì˜¤ëŠ” ë©”ì†Œë“œ
+  user.save((err, userInfo) => {
+    //í´ë¼ì´ì–¸íŠ¸ì—ê²Œ ì—ëŸ¬ê°€ ìˆë‹¤ê³  ì „ë‹¬
+    //json í˜•íƒœë¡œ
     if (err) return res.json({ success: false, err });
     return res.status(200).json({
       success: true,
@@ -49,27 +49,27 @@ app.post("/register", (req, res) => {
   });
 });
 
-app.post("/login", (req, res) => {
-  //¿äÃ»µÈ ÀÌ¸ŞÀÏÀ» µ¥ÀÌÅÍº£ÀÌ½º¿¡¼­ ÀÖ´ÂÁö È®ÀÎ
+app.post("/api/users/login", (req, res) => {
+  //ìš”ì²­ëœ ì´ë©”ì¼ì„ ë°ì´í„°ë² ì´ìŠ¤ì—ì„œ ìˆëŠ”ì§€ í™•ì¸
   User.findOne({ email: req.body.email }, (err, user) => {
     if (!user) {
       return res.json({
         loginSucess: false,
-        message: "Á¦°øµÈ ÀÌ¸ŞÀÏ¿¡ ÇØ´çÇÏ´Â À¯Àú°¡ Á¸ÀçÇÏÁö ¾Ê½À´Ï´Ù.",
+        message: "ì œê³µëœ ì´ë©”ì¼ì— í•´ë‹¹í•˜ëŠ” ìœ ì €ê°€ ì¡´ì¬í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.",
       });
     }
-    //¿äÃ»ÇÑ ÀÌ¸ŞÀÏÀÌ µ¥ÀÌÅÍº£ÀÌ½º¿¡ ÀÖÀ¸¸é ºñ¹Ğ¹øÈ£°¡ ¸Â´ÂÁö È®ÀÎ
+    //ìš”ì²­í•œ ì´ë©”ì¼ì´ ë°ì´í„°ë² ì´ìŠ¤ì— ìˆìœ¼ë©´ ë¹„ë°€ë²ˆí˜¸ê°€ ë§ëŠ”ì§€ í™•ì¸
     user.comparePassword(req.body.password, (err, isMatch) => {
       if (!isMatch)
         return res.json({
           loginSucess: false,
-          message: "ºñ¹Ğ¹øÈ£°¡ Æ²·È½À´Ï´Ù.",
+          message: "ë¹„ë°€ë²ˆí˜¸ê°€ í‹€ë ¸ìŠµë‹ˆë‹¤.",
         });
-      //ÀÌ¸ŞÀÏ ºñ¹Ğ¹øÈ£ ¸ğµÎ ¸ÂÀ¸¸é ÅäÅ« »ı¼º
+      //ì´ë©”ì¼ ë¹„ë°€ë²ˆí˜¸ ëª¨ë‘ ë§ìœ¼ë©´ í† í° ìƒì„±
       user.generateToken((err, user) => {
         if (err) return res.status(400).send(err);
-        //ÅäÅ«À» ÀúÀå -> ÄíÅ°, ·ÎÄÃ½ºÅä¸®Áö...
-        //ÄíÅ°¿¡ ÀúÀå
+        //í† í°ì„ ì €ì¥ -> ì¿ í‚¤, ë¡œì»¬ìŠ¤í† ë¦¬ì§€...
+        //ì¿ í‚¤ì— ì €ì¥
         res
           .cookie("x_auth", user.token)
           .status(200)
@@ -79,4 +79,29 @@ app.post("/login", (req, res) => {
   });
 });
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`)); //Æ÷Æ® 5000¹øÀ¸·ÎºÎÅÍ ÀÀ´ä
+app.get("/api/users/auth", auth, (req, res) => {
+  //ì—¬ê¸°ê¹Œì§€ ë¯¸ë“¤ì›¨ì–´ë¥¼ í†µê³¼í•´ì™”ë‹¤ëŠ” ê²ƒì€ authenticationì´ trueë¼ëŠ” ë§
+  res.status(200).json({
+    _id: req.user._id,
+    isAdmin: req.user.role === 0 ? false : true,
+    isAuth: true,
+    email: req.user.email,
+    name: req.user.name,
+    lastname: req.user.lastname,
+    role: req.user.role,
+    image: req.user.image,
+  });
+});
+
+app.get("/api/users/logout", auth, (req, res) => {
+  //ë¡œê·¸ì•„ì›ƒí•˜ë ¤ëŠ” ìœ ì €ë¥¼ ë°ì´í„°ë² ì´ìŠ¤ì—ì„œ ì°¾ìŒ
+  //í† ê·¼ì„ ì§€ì›Œì¤Œ
+  User.findOneAndUpdate({ _id: req.user._id }, { token: "" }, (err, user) => {
+    if (err) return res.json({ success: false, err });
+    return res.status(200).send({
+      success: true,
+    });
+  });
+});
+
+app.listen(port, () => console.log(`Example app listening on port ${port}!`)); //í¬íŠ¸ 5000ë²ˆìœ¼ë¡œë¶€í„° ì‘ë‹µ

@@ -34,14 +34,14 @@ const userSchema = mongoose.Schema({
   },
 });
 
-//saveÇÏ±â Àü
+//saveí•˜ê¸° ì „
 userSchema.pre("save", function (next) {
   var user = this;
-  //next´Â ´ÙÀ½ Çàµ¿
-  //ºñ¹Ğ¹øÈ£¸¦ ¾ÏÈ£È­
+  //nextëŠ” ë‹¤ìŒ í–‰ë™
+  //ë¹„ë°€ë²ˆí˜¸ë¥¼ ì•”í˜¸í™”
   if (user.isModified("password")) {
-    //ºñ¹Ğ¹øÈ£°¡ º¯È¯µÉ¶§¸¸
-    //ÀÌ·¸°ÔÇÏÁö ¾ÊÀ¸¸é ´Ù¸¥ Á¤º¸¸¦ ºñ¹Ğ¹øÈ£¸¦ Á¦¿ÜÇÏ°í ¹Ù²Ü¶§¸¶´Ù °è¼Ó ¾ÏÈ£È­µÇ±â ¶§¹®!
+    //ë¹„ë°€ë²ˆí˜¸ê°€ ë³€í™˜ë ë•Œë§Œ
+    //ì´ë ‡ê²Œí•˜ì§€ ì•Šìœ¼ë©´ ë‹¤ë¥¸ ì •ë³´ë¥¼ ë¹„ë°€ë²ˆí˜¸ë¥¼ ì œì™¸í•˜ê³  ë°”ê¿€ë•Œë§ˆë‹¤ ê³„ì† ì•”í˜¸í™”ë˜ê¸° ë•Œë¬¸!
     bcrypt.genSalt(saltRounds, function (err, salt) {
       if (err) return next(err);
       bcrypt.hash(user.password, salt, function (err, hash) {
@@ -56,21 +56,36 @@ userSchema.pre("save", function (next) {
 });
 
 userSchema.methods.comparePassword = function (plainPassword, cb) {
-  //plainPassword¿Í ¾ÏÈ£È­µÈ ºñ¹Ğ¹øÈ£°¡ °°ÀºÁö È®ÀÎ
-  //º¹È£È­ÇÒ ¼ö ¾ø±â ¶§¹®¿¡ plainPassword¸¦ ¾ÏÈ£È­ÇÏ¿© °°ÀºÁö È®ÀÎ
+  //plainPasswordì™€ ì•”í˜¸í™”ëœ ë¹„ë°€ë²ˆí˜¸ê°€ ê°™ì€ì§€ í™•ì¸
+  //ë³µí˜¸í™”í•  ìˆ˜ ì—†ê¸° ë•Œë¬¸ì— plainPasswordë¥¼ ì•”í˜¸í™”í•˜ì—¬ ê°™ì€ì§€ í™•ì¸
   bcrypt.compare(plainPassword, this.password, function (err, isMatch) {
-    if (err) return cb(err), cb(null, isMatch);
+    if (err) return cb(err);
+    cb(null, isMatch);
   });
 };
 
 userSchema.methods.generateToken = function (cb) {
-  //jsonwebtokenÀ» ÀÌ¿ëÇØ¼­ tokenÀ» »ı¼ºÇÏ±â
+  //jsonwebtokenì„ ì´ìš©í•´ì„œ tokenì„ ìƒì„±í•˜ê¸°
   var user = this;
-  jwt.sign(user._id.toHexString(), "secretToken");
+  var token = jwt.sign(user._id.toHexString(), "secretToken");
   user.token = token;
   user.save(function (err, user) {
     if (err) return cb(err);
     cb(null, user);
+  });
+};
+
+userSchema.statics.findByToken = function (token, cb) {
+  var user = this;
+
+  //í† í°ì„ decode
+  jwt.verify(token, "secretToken", function (err, decoded) {
+    //ìœ ì € ì•„ì´ë””ë¥¼ ì´ìš©í•´ì„œ ìœ ì €ë¥¼ ì°¾ì€ ë‹¤ìŒ
+    //í´ë¼ì´ì–¸íŠ¸ì—ì„œ ê°€ì ¸ì˜¨ í† í°ê³¼ ë°ì´í„°ë² ì´ìŠ¤ì— ë³´ê´€ëœ í† í°ì´ ì¼ì¹˜í•˜ëŠ”ì§€ í™•ì¸
+    user.findOne({ _id: decoded, token: token }, function (err, user) {
+      if (err) return cb(err);
+      cb(null, user);
+    });
   });
 };
 
